@@ -23,7 +23,7 @@ logger = logging.getLogger("hermes_cli.model_switch")
 # Rows never capped by max_models: aggregators whose full catalogs (70+ models) must stay visible, and
 # rows that are already a curated list (Nous = curated + Portal picks, OpenRouter = curated ∩ live),
 # where the cap only cut the bottom "Free tier" block and the Portal's appended recommendations.
-_UNCAPPED_PICKER_PROVIDERS: frozenset[str] = frozenset({"opencode-zen", "opencode-go", "nous", "openrouter"})
+_UNCAPPED_PICKER_PROVIDERS: frozenset[str] = frozenset({"opencode-zen", "opencode-go", "nous", "openrouter", "commandcode", "commandcode-anthropic"})
 
 
 def _save_discovered_models_to_config(
