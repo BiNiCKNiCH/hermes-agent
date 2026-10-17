@@ -231,6 +231,9 @@ def _known_provider_ids(cfg: dict) -> tuple[set, list, object, object, object]:
 _VENDOR_SLUG_PROVIDERS = {
     "openrouter", "auto", "ai-gateway", "kilocode", "opencode-zen", "huggingface", "lmstudio", "nous", "nvidia",
     "fireworks", "deepinfra",
+    # CommandCode's catalog is exclusively vendor/model too (deepseek/deepseek-v4-flash,
+    # z-ai/glm-5.3-flash, Qwen/Qwen3.8-Max) — same class as DeepInfra, not an openrouter config error.
+    "commandcode", "commandcode-anthropic",
 }
 
 
