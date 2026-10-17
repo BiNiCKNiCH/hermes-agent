@@ -1949,6 +1949,35 @@ def _provider_models_cache_path() -> Path:
     return get_hermes_home() / "provider_models_cache.json"
 
 
+def _pool_catalog_identity(provider: str) -> str:
+    """Stable digest of the pooled credentials *provider* would authenticate with, or ``"none"``.
+
+    Deliberately hashes only the identity fields (token, endpoint, auth type) — never cooldown,
+    exhaustion or usage timestamps, which are rewritten routinely and must not invalidate a
+    catalog. A real key or endpoint change still changes the digest, so the catalog is dropped.
+    """
+    import hashlib
+
+    try:
+        from hermes_cli.auth import read_credential_pool
+
+        entries = read_credential_pool(provider) or []
+    except Exception:
+        return "unreadable"
+    material = []
+    for entry in entries:
+        if not isinstance(entry, dict):
+            continue
+        material.append("|".join(
+            str(entry.get(field) or "")
+            for field in ("id", "auth_type", "access_token", "api_key", "base_url", "inference_base_url")))
+    material = [row for row in material if row.strip("|")]
+    if not material:
+        return "none"
+    blob = "||".join(sorted(material)).encode("utf-8", errors="replace")
+    return hashlib.blake2b(blob, digest_size=8).hexdigest()
+
+
 def _credential_fingerprint(provider: str) -> str:
     """Short hash of the credentials ``provider_model_ids(provider)`` would see right now.
 
@@ -2032,10 +2061,15 @@ def _credential_fingerprint(provider: str) -> str:
 
         parts.append(f"codex_identity={codex_catalog_credential_identity()}")
     else:
+        # The provider's OWN pooled credentials identify its catalog. Hashing the shared
+        # ``auth.json`` mtime instead made every api-key provider's cache row stale on ANY pool
+        # write (another provider's rotation, a cooldown move, a lifecycle write), and the
+        # non-blocking picker read path then served the static ``fallback_models`` list instead
+        # of the live catalog until a re-probe re-stamped the row.
+        parts.append(f"pool={_pool_catalog_identity(provider)}")
         try:
             from hermes_constants import get_hermes_home
-            for rel in ("auth.json", "credentials.json"):
-                _mtime_part(rel, get_hermes_home() / rel)
+            _mtime_part("credentials.json", get_hermes_home() / "credentials.json")
         except Exception:
             pass
         for rel in ("~/.codex/auth.json", "~/.claude/.credentials.json",
